@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+.watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-60deg);
+  font-size: 5rem;  /* Adjust size as needed */
+  color: rgba(0, 0, 0, 0.57);  /* Light grey color with opacity */
+  font-weight: bold;
+  pointer-events: none;  /* Ensures it doesn't block interactions */
+  z-index: -1;  /* Ensures it's behind content */
+  text-align: center;
+  user-select: none;
+  width: 100%;
+  text-transform: uppercase;  /* Optional: make the text uppercase */
+}
+.copy_watermark {
+  position: absolute;
+  /* top: 50%;
+  left: 50%; */
+  top: 150px;
+  left: 120px;
+  transform: translate(-50%, -50%) rotate(-60deg);
+  font-size: 5rem;  /* Adjust size as needed */
+  color: rgba(0, 0, 0, 0.57);   /* Light grey color with opacity */
+  font-weight: bold;
+  pointer-events: none;  /* Ensures it doesn't block interactions */
+  z-index: -1;  /* Ensures it's behind content */
+  text-align: center;
+  user-select: none;
+  width: 100%;
+  text-transform: uppercase;  /* Optional: make the text uppercase */
+}
+.ant-card-body{
+  padding: 10px !important;
+  margin-top: 5px;
+}
+.receipt{
+  font-size: 12px;
+}
+
+.ant-table-wrapper .ant-table-pagination {
+  border-radius: 50% !important; 
+}
+
+.custom-table .ant-table-tbody > tr > td {
+  padding: 8px; /* Adjust the padding to reduce row height */
+}
+
+.custom-table .ant-table-tbody > tr {
+  height: 50px; /* Set a fixed height for the rows */
+}
+
+.custom-pagination {
+  border-radius: 20px; /* Makes it round */
+  padding: 10px; /* Adds some padding */
+}
+
+.custom-pagination .ant-pagination-item {
+  border-radius: 50%; /* Round pagination items */
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.custom-pagination .ant-pagination-item-active {
+  background-color: black; /* Active item color */
+  color: white; /* Active text color */
+}
+.ant-pagination-item-active a {
+  color: #FFFFFF !important;
+  font-weight: bold;
+}
