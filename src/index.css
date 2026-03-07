@@ -73,3 +73,24 @@
   color: #FFFFFF !important;
   font-weight: bold;
 }
+
+.premium-table .ant-table {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.premium-table .ant-table-thead > tr > th {
+  background: #faf8f4;
+  font-weight: 600;
+  color: #3f3f46;
+  border-bottom: 1px solid #f0ede7;
+}
+
+.premium-table .ant-table-tbody > tr > td {
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+
+.premium-table .ant-table-tbody > tr:hover > td {
+  background: #f5f3ef;
+}

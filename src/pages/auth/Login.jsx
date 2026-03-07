@@ -20,8 +20,10 @@ const Login = () => {
 
       if (response.data.user.role === "super_admin") {
         navigate("/dashboard");
+        console.log(response)
       } else if (response.data.user.role === "cashier") {
-        navigate("/staff-dashboard");
+        console.log(response)
+        navigate("/store");
       }
     } catch (error) {
       messageApi.error(error.response?.data?.message || "Login failed");

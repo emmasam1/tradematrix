@@ -8,7 +8,7 @@ const SECRET_KEY = 'mySecretKey';
 
 const AuthConfigProvider = ({ children }) => {
   const [token, setToken] = useState(null);
-  const [baseUrl, setBaseUrl] = useState('https://trademate-bn9u.onrender.com/api');
+  const [baseUrl, setBaseUrl] = useState('https://tradematrix.onrender.com/api');
   const [user, setUser] = useState(null);
 
   // Helper functions for encryption and decryption

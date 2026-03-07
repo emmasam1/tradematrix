@@ -30,9 +30,9 @@ const App = () => {
             <Route path="categories" element={<Categories />} />
             <Route path="receipt" element={<Receipt />} />
           </Route>
-          <Route path="/staff-dashboard" element={<StaffDashboardLayout />}>
-            <Route path="" element={<StaffDashboard />} />
-            <Route path="store" element={<Store />} />
+          <Route path="/store" element={<StaffDashboardLayout />}>
+         
+            <Route path="" element={<Store />} />
           </Route>
         </Routes>
       </BrowserRouter>

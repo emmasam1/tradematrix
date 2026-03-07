@@ -25,13 +25,15 @@ const Store = () => {
   const [receiptCount, setReceiptCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
 
+  const [receiptData, setReceiptData] = useState(null);
+
   const fetchProducts = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
       const { data } = await axios.get(`${baseUrl}/products`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log(data)
+      console.log(data);
       setProducts(data.products || []);
       if (!silent) messageApi.success("Products loaded");
     } catch (error) {
@@ -44,8 +46,8 @@ const Store = () => {
   useEffect(() => {
     if (token) {
       fetchProducts();
-      const interval = setInterval(() => fetchProducts(true), 20000);
-      return () => clearInterval(interval);
+      // const interval = setInterval(() => fetchProducts(true), 20000);
+      // return () => clearInterval(interval);
     }
   }, [baseUrl, token]);
 
@@ -79,33 +81,46 @@ const Store = () => {
   };
 
   const logReceipt = async () => {
-    setIsModalVisible(true);
-    setReceiptLoading(true);
-    try {
-      const { data } = await axios.post(
-        `${baseUrl}/preview`,
-        {
-          products: cart.map((item) => ({
-            productId: item._id,
-            quantitySold: item.quantity,
-          })),
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setReceiptCount(data.receipt.printCount);
-      setReceiptId(data.receipt._id);
-      setReceiptNumber(data.receipt.receiptCode);
-    } catch (error) {
-      messageApi.error("Failed to generate receipt.");
-    } finally {
-      setReceiptLoading(false);
-    }
-  };
+  setIsModalVisible(true);
+  setReceiptLoading(true);
 
-  const total = cart.reduce(
-    (acc, item) => acc + item.unitPrice * item.quantity,
-    0
-  );
+  try {
+    const payload = {
+      products: cart.map((item) => ({
+        productId: item._id,
+        quantitySold: item.quantity || 1,
+        length: Number(item.length) || 0,
+        width: Number(item.width) || 0,
+        negotiatedPrice: Number(item.negotiatedPrice) || 0,
+      })),
+    };
+
+    console.log("payload", payload)
+
+    const { data } = await axios.post(
+      `${baseUrl}/receipts/preview`,
+      payload,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+
+    setReceiptData(data); // backend provides all totals, lineTotals, etc.
+    setReceiptCount(data.receipt.printCount);
+    setReceiptId(data.receipt._id);
+    setReceiptNumber(data.receipt.receiptCode);
+
+    console.log("Receipt preview from backend:", data);
+  } catch (error) {
+    console.error(error);
+    messageApi.error("Failed to generate receipt.");
+  } finally {
+    setReceiptLoading(false);
+  }
+};
+
+  // const total = cart.reduce(
+  //   (acc, item) => acc + item.unitPrice * item.quantity,
+  //   0
+  // );
 
   const handlePrint = useReactToPrint({
     contentRef: receiptRef,
@@ -115,7 +130,7 @@ const Store = () => {
         await axios.post(
           `${baseUrl}/sell-receipt`,
           { receiptId },
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         );
         messageApi.success("Products sold!");
         await fetchProducts();
@@ -159,67 +174,89 @@ const Store = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 relative top-12">
               {products
                 .filter((product) =>
-                  product.title.toLowerCase().includes(searchTerm.toLowerCase())
+                  product.title
+                    .toLowerCase()
+                    .includes(searchTerm.toLowerCase()),
                 )
                 .map((product, index) => {
                   const isOutOfStock = product.quantity === 0;
-                  const isExpired = product.expiryDate && new Date(product.expiryDate) < new Date();
-                  const isUnavailable = isOutOfStock || isExpired;
-                  const price = product.isDiscount
-                    ? product.unitPrice - product.discountAmount
-                    : product.unitPrice;
-                
+                  // const isExpired = product.expiryDate && new Date(product.expiryDate) < new Date();
+                  const isUnavailable = isOutOfStock;
+                  // const price = product.pricePerSquareMeter
+                  //   ? product.unitPrice - product.discountAmount
+                  //   : product.unitPrice;
+
                   return (
                     <Card
                       key={index}
                       hoverable={!isUnavailable}
-                      className={`p-1 relative !py-2 ${isUnavailable ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                      onClick={() => {
-                        if (!isUnavailable) handleProductClick(product);
-                      }}
+                      className={`
+    relative rounded-2xl overflow-hidden shadow-md 
+    transition-all duration-300
+    ${isUnavailable ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:shadow-xl hover:-translate-y-1"}
+  `}
+                      onClick={() =>
+                        !isUnavailable && handleProductClick(product)
+                      }
                       cover={
-                        <img
-                          alt={product.title}
-                          src={product.image || product_default}
-                          className="h-24 object-contain"
-                        />
+                        <div className="h-32 bg-gray-50 flex items-center justify-center p-2">
+                          <img
+                            alt={product.title}
+                            src={product.image || product_default}
+                            className="h-full object-contain transition-transform duration-300 hover:scale-105"
+                          />
+                        </div>
                       }
                     >
-                      {product.isDiscount && product.discountAmount > 0 && (
-                        <p className="text-xs text-green-600 font-bold absolute top-2 right-2 bg-white px-1 rounded">
-                          -₦{product.discountAmount}
+                      {/* Discount Badge */}
+                      {/* {product.isDiscount && product.discountAmount > 0 && (
+                        <span className="absolute top-2 right-2 bg-green-600 text-white text-[10px] px-2 py-0.5 rounded-full shadow">
+                          -₦{product.discountAmount.toLocaleString()}
+                        </span>
+                      )} */}
+
+                      {/* Trending Badge */}
+                      {product.isTrending && (
+                        <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full shadow">
+                          🔥 Trending
+                        </span>
+                      )}
+
+                      <div className="pt-2 space-y-1">
+                        <h3 className="font-bold text-sm truncate">
+                          {product.title}
+                        </h3>
+                        <p className="text-base font-semibold text-gray-900">
+                          ₦
+                          {Number(
+                            product.pricePerSquareMeter || 0,
+                          ).toLocaleString()}{" "}
+                          <span className="text-xs font-normal text-gray-500">
+                            /m²
+                          </span>
                         </p>
-                      )}
-                
-                      <h3 className="font-bold text-xs">{product.title}</h3>
-                      <p className="text-xs">₦{price}</p>
-                      <p
-                        className={`text-xs ${
-                          isOutOfStock
-                            ? "text-red-500"
+                        <p
+                          className={`text-xs font-medium ${
+                            isOutOfStock
+                              ? "text-red-500"
+                              : product.quantity < 10
+                                ? "text-orange-500"
+                                : "text-green-600"
+                          }`}
+                        >
+                          {isOutOfStock
+                            ? "Out of Stock"
                             : product.quantity < 10
-                            ? "text-orange-500"
-                            : ""
-                        }`}
-                      >
-                        Qty: {product.quantity}
-                      </p>
-                
-                      {isExpired && (
-                        <p className="text-red-600 text-xs font-bold">Expired</p>
-                      )}
-                
-                      {isOutOfStock && (
-                        <p className="text-red-500 text-xs font-bold">Out of Stock</p>
-                      )}
+                              ? `Low Stock (${product.quantity})`
+                              : `In Stock (${product.quantity})`}
+                        </p>
+                      </div>
                     </Card>
                   );
                 })}
-                
-                
 
               {products.filter((product) =>
-                product.title.toLowerCase().includes(searchTerm.toLowerCase())
+                product.title.toLowerCase().includes(searchTerm.toLowerCase()),
               ).length === 0 && (
                 <p className="text-center col-span-full">No products found</p>
               )}
@@ -232,66 +269,132 @@ const Store = () => {
           <div className="sticky top-4">
             <div className="bg-white p-4 rounded shadow-md">
               <h2 className="text-lg font-bold mb-4">Cart</h2>
+
               {cart.length === 0 ? (
                 <p className="text-gray-500">Cart is empty</p>
               ) : (
-                <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
+                <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
                   {cart.map((item, index) => {
-                    const price = item.isDiscount
-                      ? item.unitPrice - item.discountAmount
-                      : item.unitPrice;
-
                     return (
                       <div
                         key={index}
-                        className="flex justify-between items-center border-b py-2"
+                        className="flex flex-col border rounded-lg p-3 gap-2"
                       >
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={item.image || product_default}
-                            alt={item.title}
-                            className="w-10 h-10 object-contain"
-                          />
-                          <div>
-                            <h4 className="text-sm font-semibold">{item.title}</h4>
-                            <p className="text-xs text-gray-500">₦{price}</p>
+                        {/* Product Info */}
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={item.image || product_default}
+                              alt={item.title}
+                              className="w-10 h-10 object-contain"
+                            />
+                            <div>
+                              <h4 className="text-sm font-semibold">
+                                {item.title}
+                              </h4>
+                              <p className="text-xs text-gray-500">
+                                ₦
+                                {(
+                                  item.pricePerSquareMeter || 0
+                                ).toLocaleString()}
+                              </p>
+
+                              {/* Show negotiated price in blue */}
+                              {item.negotiatedPrice > 0 && (
+                                <p className="text-xs text-blue-600 font-medium">
+                                  Negotiated: ₦
+                                  {(item.negotiatedPrice || 0).toLocaleString()}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Quantity Controls */}
+                          <div className="flex items-center gap-1">
+                            <div
+                              className="bg-red-500 text-white p-1 rounded cursor-pointer"
+                              onClick={() => handleMinusClick(index)}
+                            >
+                              <RiSubtractFill size={16} />
+                            </div>
+
+                            <span className="px-2 text-sm">
+                              {item.quantity}
+                            </span>
+
+                            <div
+                              className="bg-blue-500 text-white p-1 rounded cursor-pointer"
+                              onClick={() => handlePlusClick(index)}
+                            >
+                              <IoAdd size={16} />
+                            </div>
+
+                            <Button
+                              type="text"
+                              size="small"
+                              danger
+                              onClick={() => handleRemoveClick(index)}
+                            >
+                              <IoCloseOutline />
+                            </Button>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1">
-                          <div
-                            className="bg-red-500 text-white p-1 rounded cursor-pointer"
-                            onClick={() => handleMinusClick(index)}
-                          >
-                            <RiSubtractFill size={16} />
-                          </div>
-                          <span className="px-2">{item.quantity}</span>
-                          <div
-                            className="bg-blue-500 text-white p-1 rounded cursor-pointer"
-                            onClick={() => handlePlusClick(index)}
-                          >
-                            <IoAdd size={16} />
-                          </div>
-                          <Button
-                            type="text"
-                            size="small"
-                            danger
-                            onClick={() => handleRemoveClick(index)}
-                          >
-                            <IoCloseOutline />
-                          </Button>
+                        {/* Row & Col + Negotiated Price Inputs */}
+                        <div className="grid grid-cols-3 gap-2 mt-2">
+                          <Input
+                            type="number"
+                            min={0}
+                            placeholder="Row"
+                            value={item.length || ""}
+                            onChange={(e) => {
+                              const updatedCart = [...cart];
+                              updatedCart[index].length =
+                                e.target.value === ""
+                                  ? ""
+                                  : Number(e.target.value);
+                              setCart(updatedCart);
+                            }}
+                            className="text-xs"
+                          />
+
+                          <Input
+                            type="number"
+                            min={0}
+                            placeholder="Col"
+                            value={item.width || ""}
+                            onChange={(e) => {
+                              const updatedCart = [...cart];
+                              updatedCart[index].width =
+                                e.target.value === ""
+                                  ? ""
+                                  : Number(e.target.value);
+                              setCart(updatedCart);
+                            }}
+                            className="text-xs"
+                          />
+
+                          <Input
+                            type="number"
+                            min={0}
+                            placeholder="Negotiated Price"
+                            value={item.negotiatedPrice || ""}
+                            onChange={(e) => {
+                              const updatedCart = [...cart];
+                              updatedCart[index].negotiatedPrice =
+                                e.target.value === ""
+                                  ? ""
+                                  : Number(e.target.value);
+                              setCart(updatedCart);
+                            }}
+                            className="text-xs"
+                          />
                         </div>
                       </div>
                     );
                   })}
                 </div>
               )}
-
-              {/* Cart Total */}
-              <div className="flex justify-between font-bold text-lg mt-4">
-                <span>Total:</span>
-                <span>₦{total}</span>
-              </div>
 
               {/* Checkout */}
               <Button
@@ -334,10 +437,11 @@ const Store = () => {
           <Receipt
             ref={receiptRef}
             cart={cart}
-            total={total}
+            // total={total}
             receiptId={receiptId}
             receiptNumber={receiptNumber}
             receiptCount={receiptCount}
+            receiptData={receiptData}
           />
         )}
       </Modal>

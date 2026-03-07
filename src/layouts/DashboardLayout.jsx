@@ -41,7 +41,7 @@ const DashboardLayout = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const navigate = useNavigate();
   const { user, baseUrl, token } = useAuthConfig();
-  // console.log(user)
+  console.log(user)
 
   let title = "Default Title";
 
@@ -218,11 +218,12 @@ const DashboardLayout = () => {
           }}
         >
           <h3 className="header-title text-2xl">{title}</h3>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-5">
             <h3 className="header-title text-1xl font-bold">
               Hi {user?.firstName}
             </h3>
-            <Time />
+           <div className="flex items-center gap-3">
+             <Time />
             <Button
               onClick={showLogoutModal}
               type="primary"
@@ -230,6 +231,7 @@ const DashboardLayout = () => {
             >
               Logout
             </Button>
+           </div>
           </div>
         </Header>
 

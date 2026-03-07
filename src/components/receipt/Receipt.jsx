@@ -1,143 +1,205 @@
+// File: components/receipt/Receipt.jsx
+
 import React from "react";
 import { useAuthConfig } from "../../context/AppState";
 
-// Forward the ref to the component
 const Receipt = React.forwardRef((props, ref) => {
-  const { cart, total, receiptNumber, receiptCount } = props;
+  const {
+    cart = [],
+    receiptNumber,
+    customerName,
+    customerPhone,
+    receiptData,
+  } = props;
+
   const { user } = useAuthConfig();
 
-
-  const getFormattedTime = () => {
-    const now = new Date();
-    let hours = now.getHours();
-    const minutes = now.getMinutes();
-    const ampm = hours >= 12 ? " PM" : " AM";
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    const minutesFormatted = minutes < 10 ? "0" + minutes : minutes;
-    return `${hours}:${minutesFormatted}${ampm}`;
-  };
-
-  const currentTime = getFormattedTime();
-
-  const getFormattedDate = () => {
-    const now = new Date();
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    const day = now.getDate();
-    const month = months[now.getMonth()];
-    const year = now.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
-  const currentDate = getFormattedDate();
-
-  // Format currency (NGN) with comma separation
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-NG", {
+  const formatCurrency = (amount) =>
+    new Intl.NumberFormat("en-NG", {
       style: "currency",
       currency: "NGN",
-    }).format(amount);
-  };
+    }).format(amount || 0);
 
-  const receiptWidth = "90mm"; // Specify the width here
+  const currentDate = new Date().toLocaleDateString("en-GB");
+
+  console.log(receiptData)
 
   return (
     <div
-      className="p-4 relative"
       ref={ref}
-      style={{ width: receiptWidth, margin: "auto" }}
+      style={{
+        width: "210mm",
+        minHeight: "297mm",
+        padding: "20px",
+        margin: "auto",
+        background: "#fff",
+        fontFamily: "Arial, sans-serif",
+        fontSize: "13px",
+        color: "#000",
+        border: "2px solid #000",
+      }}
     >
-      <div>
-        <h2 className="text-xl font-bold mb-2">{user.assignedShop.name}</h2>
-        <p className="receipt">
-          Address: Lorem ipsum, dolor sit amet consectetur adipisicing elit
-        </p>
-        <p className="receipt">Phone: 08055120900, 08055120900</p>
-        <p className="receipt">Email: testStore@gmail.com</p>
+      {/* HEADER */}
+      <div style={{ textAlign: "center", marginBottom: 20 }}>
+        <h1 style={{ margin: 0, letterSpacing: 3 }}>PROFORMA INVOICE</h1>
       </div>
-      <div className="mt-3">
-        <div className="flex justify-between">
-          <p className="receipt">{currentDate}</p>
-          <p className="receipt">{currentTime}</p>
-        </div>
-        <div className="flex justify-between">
-          <p className="receipt">Cashier:</p>
-          <p className="receipt uppercase font-bold">
-            {user.firstName} {user.lastName}
+
+      {/* SELLER / BUYER BOX */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          border: "1px solid #000",
+          padding: 15,
+          marginBottom: 20,
+        }}
+      >
+        <div style={{ width: "48%" }}>
+          <strong>Seller</strong>
+          <p style={{ margin: "5px 0" }}>
+            {user?.assignedShop?.name || "Your Company Name"}
           </p>
+          <p style={{ margin: 0 }}>Your Business Address</p>
+          <p style={{ margin: 0 }}>Phone: 08000000000</p>
         </div>
-        <div className="flex justify-between">
-          <p className="receipt">Receipt No:</p>
-          <p className="receipt">{receiptNumber}</p>
-        </div>
-      </div>
-      <div className="text-center">
-        {"*".repeat(Math.floor(parseInt(receiptWidth) / 1.9))}
-      </div>
-      <div className="mb-4">
-        <div className="flex justify-between font-bold">
-          <h2 className="text-xs w-3/9 text-left">Description</h2>
-          <h2 className="text-xs w-2/12 text-center">Qty</h2>
-          <h2 className="text-xs w-3/12 text-center">Unit Price</h2>
-          <h2 className="text-xs w-4/12 text-right">Price</h2>
-        </div>
-        <div className="relative">
-          <h2 className="watermark">{user.assignedShop.name}</h2>
-          {receiptCount > 1 ? (
-              <h2 className="copy_watermark">copy</h2>
-            ) : null}
 
-          {cart.map((item, index) => (
-            <div key={index} className="flex justify-between py-2">
-              <div className="flex w-3/9">
-                <span className="receipt">{index + 1}.</span>
-                <span className="receipt ml-2">{item.title}</span>
-              </div>
-              <div className="flex w-2/12 justify-center">
-                <span className="receipt">{item.quantity}</span>
-              </div>
-              <div className="flex w-3/12 justify-center">
-                <span className="receipt">{item.unitPrice}</span>
-              </div>
-              <div className="flex w-4/12 justify-end">
-                <span className="receipt">
-                  {formatCurrency(item.unitPrice * item.quantity)}
-                </span>
-              </div>
-            </div>
+        <div style={{ width: "48%", textAlign: "right" }}>
+          <strong>Buyer</strong>
+          <p style={{ margin: "5px 0" }}>
+            {customerName || "Walk-in Customer"}
+          </p>
+          <p style={{ margin: 0 }}>Phone: {customerPhone || "-"}</p>
+          <p style={{ margin: 0 }}>Invoice No: {receiptNumber}</p>
+          <p style={{ margin: 0 }}>Date: {currentDate}</p>
+        </div>
+      </div>
+
+      {/* TABLE */}
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          marginBottom: 20,
+        }}
+      >
+        <thead>
+          <tr>
+            {[
+              "S/N",
+              "Name",
+              "Dimensions (L x W)",
+              "SQM",
+              "Qty",
+              "₦ Per SQM",
+              "₦ Neg. Price",
+              "Total Price",
+            ].map((head, i) => (
+              <th
+                key={i}
+                style={{
+                  border: "1px solid #000",
+                  padding: "10px",
+                  background: "#f9f9f9",
+                }}
+              >
+                {head}
+              </th>
+            ))}
+          </tr>
+        </thead>
+
+        <tbody>
+          {receiptData?.receipt?.products?.map((item, index) => (
+            <tr key={index}>
+              <td style={td}>{index + 1}</td>
+              <td style={{ ...td, textAlign: "left" }}>{item.title}</td>
+              <td style={td}>
+                {item?.dimensions?.length || "-"} X {item?.dimensions?.width || "-"}
+              </td>
+              <td style={td}>{item?.dimensions?.totalSquareMeters || 0}</td>
+              <td style={td}>{item.quantitySold || 1}</td>
+              <td style={{ ...td, textAlign: "right" }}>
+                {formatCurrency(item.pricePerSquareMeter || 0)}
+              </td>
+              <td style={{ ...td, textAlign: "right" }}>
+                {formatCurrency(item.negotiatedPriceAtSale || 0)}
+              </td>
+              <td style={{ ...td, textAlign: "right" }}>
+                {formatCurrency(item.originalPriceAtSale || 0)}
+              </td>
+            </tr>
           ))}
+        </tbody>
+      </table>
+
+      {/* TOTALS BOX */}
+      <div
+        style={{
+          width: "45%",
+          marginLeft: "auto",
+          border: "1px solid #000",
+          padding: 15,
+        }}
+      >
+        <SummaryRow
+          label="Total PCS"
+          value={receiptData?.receipt?.products?.length || 0}
+        />
+
+        <div
+          style={{
+            borderTop: "2px solid #000",
+            marginTop: 10,
+            paddingTop: 10,
+            fontWeight: "bold",
+            display: "flex",
+            justifyContent: "space-between",
+          }}
+        >
+          <span>GRAND TOTAL</span>
+          <span>{receiptData?.receipt?.formattedSubTotal || "₦0"}</span>
         </div>
       </div>
 
-      <div className="text-center">
-        {"*".repeat(Math.floor(parseInt(receiptWidth) / 1.9))}
+      {/* SIGNATURE */}
+      <div
+        style={{
+          marginTop: 60,
+          display: "flex",
+          justifyContent: "space-between",
+        }}
+      >
+        <div>
+          _________________________ <br />
+          Authorized Signature
+        </div>
+
+        <div>
+          _________________________ <br />
+          Customer Signature
+        </div>
       </div>
-      <div className="flex justify-between font-bold">
-        <span>Total Amount:</span>
-        <span>{formatCurrency(total)}</span>
-      </div>
-      <div className="text-center">
-        {"*".repeat(Math.floor(parseInt(receiptWidth) / 1.9))}
-      </div>
-      <h2 className="italic">
-        Thanks for coming. We'll love to serve you again.
-      </h2>
-      <h2 className="font-bold text-right">No refund after payment</h2>
     </div>
   );
 });
+
+const td = {
+  border: "1px solid #000",
+  padding: "8px",
+  textAlign: "center",
+};
+
+const SummaryRow = ({ label, value }) => (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      marginBottom: 6,
+    }}
+  >
+    <span>{label}</span>
+    <span>{value}</span>
+  </div>
+);
 
 export default Receipt;

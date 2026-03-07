@@ -174,10 +174,11 @@ const Categories = () => {
             rowKey="_id"
             size="small"
             pagination={{
-              pageSize: 5,
+              pageSize: 10,
               position: ["bottomCenter"],
               className: "custom-pagination",
             }}
+            className="custom-table"
             scroll={{ x: "max-content" }}
           />
         </div>
@@ -189,7 +190,7 @@ const Categories = () => {
         open={categoryModalOpen}
         onCancel={() => setCategoryModalOpen(false)}
         footer={null}
-        width={320}
+        width={500}
       >
         <Form
           form={form}
@@ -232,7 +233,7 @@ const Categories = () => {
         open={editModalOpen}
         onCancel={() => setEditModalOpen(false)}
         footer={null}
-        width={320}
+        width={500}
       >
         <Form
           form={form}

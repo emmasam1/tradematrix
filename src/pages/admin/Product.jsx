@@ -57,104 +57,66 @@ const Product = () => {
     setIsEditing(false);
     setProductBeingEdited(null);
   };
-
-
-  // const onFinish = async (values) => {
-  //   const isEdit = isEditing && productBeingEdited?._id;
-  //   const productUrl = isEdit
-  //     ? `${baseUrl}/${productBeingEdited._id}`
-  //     : `${baseUrl}/add-product`;
-  
-  //   const formData = new FormData();
-  //   formData.append("title", values.title);
-  //   formData.append("description", values.description);
-  //   if (imageFile) formData.append("image", imageFile);
-  //   formData.append("unitPrice", values.unitPrice);
-  //   formData.append("bulkPrice", values.bulkPrice);
-  //   formData.append("sizes", values.sizes || []);
-  //   formData.append("isTrending", values.isTrending || false);
-  //   formData.append("isDiscount", values.isDiscount || false);
-  //   formData.append("discountAmount", values.discountAmount || 0);
-  //   formData.append("quantity", values.quantity);
-  //   formData.append("manufacturingDate", values.manufacturingDate.format("YYYY-MM-DD"));
-  //   formData.append("expiryDate", values.expiryDate.format("YYYY-MM-DD"));
-  //   formData.append("category", values.category);
-  
-  //   try {
-  //     setLoading(true);
-  //     const method = isEdit ? "patch" : "post";
-  
-  //     const response = await axios[method](productUrl, formData, {
-  //       headers: {
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //     });
-  
-  //     messageApi.open({
-  //       type: "success",
-  //       content: `Product ${isEdit ? "updated" : "added"} successfully`,
-  //     });
-  
-  //     await fetchProducts(); // refresh list
-  //     handleCancelProductModal();
-  //   } catch (error) {
-  //     const errorMessage =
-  //       error.response?.data?.message ||
-  //       `An error occurred while ${isEdit ? "updating" : "adding"} the product`;
-  //     messageApi.open({ type: "error", content: errorMessage });
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
   
 
-  const onFinish = async (values) => {
-    const isEdit = isEditing && productBeingEdited?._id;
-    const productUrl = isEdit
-      ? `${baseUrl}/${productBeingEdited._id}`
-      : `${baseUrl}/add-product`;
+ const onFinish = async (values) => {
+  const isEdit = isEditing && productBeingEdited?._id;
 
-    const formData = new FormData();
-    formData.append("title", values.title);
-    formData.append("description", values.description);
-    if (imageFile) formData.append("image", imageFile);
-    formData.append("unitPrice", values.unitPrice);
-    formData.append("bulkPrice", values.bulkPrice);
-    formData.append("sizes", values.sizes || []);
-    formData.append("isTrending", values.isTrending || false);
-    formData.append("isDiscount", values.isDiscount || false);
-    formData.append("discountAmount", values.discountAmount || 0);
-    formData.append("quantity", values.quantity);
-    formData.append("manufacturingDate", values.manufacturingDate.format("YYYY-MM-DD"));
-    formData.append("expiryDate", values.expiryDate.format("YYYY-MM-DD"));
-    formData.append("category", values.category);
+  const productUrl = isEdit
+    ? `${baseUrl}/${productBeingEdited._id}`
+    : `${baseUrl}/add-product`;
 
-    try {
-      setLoading(true);
-      const method = isEdit ? "patch" : "post";
+  const formData = new FormData();
 
-      const response = await axios[method](productUrl, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  formData.append("title", values.title);
+  formData.append("description", values.description);
+  formData.append("pricePerSquareMeter", values.pricePerSquareMeter);
+  formData.append("bulkPrice", values.bulkPrice);
+  formData.append("isTrending", values.isTrending || false);
+  formData.append("isDiscount", values.isDiscount || false);
+  formData.append("discountAmount", values.discountAmount || 0);
+  formData.append("quantity", values.quantity);
+  formData.append(
+    "manufacturingDate",
+    values.manufacturingDate.format("YYYY-MM-DD")
+  );
+  formData.append("category", values.category);
 
-      messageApi.open({
-        type: "success",
-        content: `Product ${isEdit ? "updated" : "added"} successfully`,
-      });
+  if (imageFile) {
+    formData.append("image", imageFile);
+  }
 
-      await fetchProducts(); // refresh list
-      handleCancelProductModal();
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.message ||
-        `An error occurred while ${isEdit ? "updating" : "adding"} the product`;
-      messageApi.open({ type: "error", content: errorMessage });
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+
+    const method = isEdit ? "patch" : "post";
+
+    const res = await axios[method](productUrl, formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+console.log('====================================');
+console.log(res);
+console.log('====================================');
+    messageApi.success(
+      `Product ${isEdit ? "updated" : "added"} successfully`
+    );
+
+    await fetchProducts();
+    handleCancelProductModal();
+  } catch (error) {
+    console.log('====================================');
+    console.log(error);
+    console.log('====================================');
+    messageApi.error(
+      error.response?.data?.message ||
+        `Error ${isEdit ? "updating" : "adding"} product`
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const getCategories = async () => {
     try {
@@ -211,17 +173,16 @@ const Product = () => {
     }
   }, [baseUrl, token]);
 
-  const dataSource = filteredProducts.map((product, index) => ({
-    key: product._id || index.toString(),
-    title: product.title,
-    bulkPrice: product.bulkPrice,
-    unitPrice: product.unitPrice,
-    quantity: product.quantity,
-    expiryDate: moment(product.expiryDate).format("YYYY-MM-DD"),
-    manufacturingDate: moment(product.manufacturingDate).format("YYYY-MM-DD"),
-    image: product.image,
-    category: product.category?.name || "N/A",
-  }));
+const dataSource = filteredProducts.map((product, index) => ({
+  key: product._id || index.toString(),
+  title: product.title,
+  pricePerSquareMeter: product.pricePerSquareMeter,
+  bulkPrice: product.bulkPrice,
+  quantity: product.quantity,
+  manufacturingDate: moment(product.manufacturingDate).format("YYYY-MM-DD"),
+  image: product.image,
+  category: product.category?.name || "N/A",
+}));
 
   const columns = [
     {
@@ -243,15 +204,16 @@ const Product = () => {
     },
     { title: "Product Name", dataIndex: "title", key: "title" },
     { title: "Category", dataIndex: "category", key: "category" },
-    { title: "Bulk Price", dataIndex: "bulkPrice", key: "bulkPrice" },
-    { title: "Unit Price", dataIndex: "unitPrice", key: "unitPrice" },
+    
+    { title: "Price / m²", dataIndex: "pricePerSquareMeter", key: "pricePerSquareMeter" },
+{ title: "Bulk Price", dataIndex: "bulkPrice", key: "bulkPrice" },
     { title: "Quantity", dataIndex: "quantity", key: "quantity" },
     {
       title: "Maf. Date",
       dataIndex: "manufacturingDate",
       key: "manufacturingDate",
     },
-    { title: "Exp. Date", dataIndex: "expiryDate", key: "expiryDate" },
+
     {
       title: "Actions",
       key: "operations",
@@ -422,7 +384,7 @@ const Product = () => {
         >
           Add Product <PlusOutlined />
         </Button>
-        <div className="flex gap-2">
+        {/* <div className="flex gap-2">
           <Button
             color="primary"
             variant="solid"
@@ -447,7 +409,7 @@ const Product = () => {
           >
             Expired
           </Button>
-        </div>
+        </div> */}
       </div>
       {loading ? (
         <div className="flex justify-center items-center my-4 h-60 bg-white">
@@ -509,8 +471,8 @@ const Product = () => {
           <Row gutter={[16, 16]}>
             <Col span={12}>
               <Form.Item
-                label="Unit Price"
-                name="unitPrice"
+                label="Price Pre sqm"
+                name="pricePerSquareMeter"
                 className="mb-2"
                 rules={[
                   { required: true, message: "Please input unit price!" },

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Outlet, useNavigate, Link, useLocation } from "react-router";
 import { DesktopOutlined, PieChartOutlined } from "@ant-design/icons";
-import { Layout, Menu, theme, Button, Modal, Form, Input, message } from "antd";
+import { Layout, Menu, theme, Button, Modal, Form, Input, message, Avatar, Typography  } from "antd";
 import { useAuthConfig } from "../context/AppState";
 import Time from "../components/time/Time";
 import DotLoader from "react-spinners/DotLoader";
@@ -17,6 +17,8 @@ import * as jwt_decode from "jwt-decode";
 import axios from "axios";
 import { useReactToPrint } from "react-to-print"; // Uncomment and implement this if needed for receipt printing
 
+const { Text } = Typography; 
+
 const SECRET_KEY = "mySecretKey";
 const { Header, Content, Sider } = Layout;
 
@@ -25,8 +27,7 @@ function getItem(label, key, icon, children) {
 }
 
 const items = [
-  getItem("Dashboard", "/staff-dashboard", <PieChartOutlined />),
-  getItem("Store", "/staff-dashboard/store", <DesktopOutlined />),
+  getItem("Store", "/store", <DesktopOutlined />),
 ];
 
 const StaffDashboardLayout = () => {
@@ -46,11 +47,12 @@ const StaffDashboardLayout = () => {
   const receiptRef = useRef();
   const receiptWidth = "90mm";
 
+  // console.log(user)
+
   const selectedKey = location.pathname;
 
   const titles = {
-    "/staff-dashboard": "Dashboard",
-    "/staff-dashboard/store": "Store",
+    "/store": "Store",
   };
   const title = titles[location.pathname] || "Default Title";
 
@@ -233,26 +235,42 @@ const StaffDashboardLayout = () => {
   return (
     <Layout style={{ minHeight: "100vh" }}>
       {contextHolder}
-      <Sider
+    <Sider
         collapsible
         collapsed={collapsed}
         onCollapse={(value) => setCollapsed(value)}
         theme="light"
+        // width={200}
         style={{
-          backgroundColor: "#ffffff",
-          // borderTopRightRadius: "1rem",
-          // borderBottomRightRadius: "1rem",
           position: "fixed",
           height: "100vh",
+          backgroundColor: "#ffffff",
+          // boxShadow: "2px 0 8px rgba(0,0,0,0.05)",
+          zIndex: 1000,
+          paddingTop: 16,
         }}
       >
-        <Menu theme="light" selectedKeys={[selectedKey]} mode="inline">
-          {items.map((item) => (
-            <Menu.Item key={item.key} icon={item.icon}>
-              <Link to={item.key}>{item.label}</Link>
-            </Menu.Item>
-          ))}
-        </Menu>
+        <div className="flex flex-col items-center mb-6">
+          <Avatar
+            src={user?.assignedShop?.icon || null}
+            size={collapsed ? 40 : 80}
+            shape="square"
+            style={{ marginBottom: collapsed ? 0 : 8 }}
+          >
+            {!user?.assignedShop?.icon && "S"}
+          </Avatar>
+          {!collapsed && (
+            <Text strong className="text-center text-sm">
+              {user?.assignedShop?.name || "My Store"}
+            </Text>
+          )}
+        </div>
+
+        <Menu theme="light" selectedKeys={[selectedKey]} mode="inline" items={items.map(item => ({
+          key: item.key,
+          icon: item.icon,
+          label: <Link to={item.key}>{item.label}</Link>
+        }))} />
       </Sider>
 
       <Layout>

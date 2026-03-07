@@ -71,6 +71,7 @@ const Dashboard = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      console.log("here", dashboardRes);
       // console.log("here", dashboardRes.data?.monthlySummary);
       // setMonthlySales(dashboardRes.data?.monthlySummary)
       setTransaction(dashboardRes.data?.monthlySummary?.totalTransactions);
@@ -179,38 +180,63 @@ const Dashboard = () => {
   }, [filteredMonthSales]);
 
   useEffect(() => {
-    const fetchSalesData = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get(
-          `${baseUrl}/dashboard?month=${selectedMonth}&year=${selectedYear}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        setDashboardData(response.data);
-        setSalesTrends(response.data.salesTrends || []);
-        setMonthlySales(response.data.monthlySummary?.totalSales || 0);
+  const fetchSalesData = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(
+        `${baseUrl}/dashboard?month=${selectedMonth}&year=${selectedYear}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
-        setSelectedMonth(dayjs().month() + 1);
-        setSelectedYear(dayjs().year());
+      setDashboardData(response.data);
+      setSalesTrends(response.data.salesTrends || []);
+      setMonthlySales(response.data.monthlySummary?.totalSales || 0);
 
-        // console.log("this is it", response.data.monthlySummary.totalSales);
-        // console.log(
-        //   "Fetched data for month:",
-        //   selectedMonth,
-        //   "year:",
-        //   selectedYear
-        // );
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchSalesData();
-  }, [selectedMonth, selectedYear, token]);
+  fetchSalesData();
+}, [selectedMonth, selectedYear, token]);
+
+  // useEffect(() => {
+  //   const fetchSalesData = async () => {
+  //     try {
+  //       setLoading(true);
+  //       const response = await axios.get(
+  //         `${baseUrl}/dashboard?month=${selectedMonth}&year=${selectedYear}`,
+  //         {
+  //           headers: { Authorization: `Bearer ${token}` },
+  //         }
+  //       );
+  //       setDashboardData(response.data);
+  //       setSalesTrends(response.data.salesTrends || []);
+  //       setMonthlySales(response.data.monthlySummary?.totalSales || 0);
+
+  //       setSelectedMonth(dayjs().month() + 1);
+  //       setSelectedYear(dayjs().year());
+
+  //       // console.log("this is it", response.data.monthlySummary.totalSales);
+  //       // console.log(
+  //       //   "Fetched data for month:",
+  //       //   selectedMonth,
+  //       //   "year:",
+  //       //   selectedYear
+  //       // );
+  //     } catch (error) {
+  //       console.error("Error fetching dashboard data:", error);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+
+  //   fetchSalesData();
+  // }, [selectedMonth, selectedYear, token]);
 
   const calculateDailySales = () => {
     const selected = dayjs(selectedDate).format("YYYY-MM-DD");
@@ -249,27 +275,23 @@ const Dashboard = () => {
       getDashboardData();
       fetchExpiredProducts();
 
-      const interval = setInterval(() => {
-        getDashboardData(true);
-        fetchExpiredProducts();
-      }, 30000);
-
-      return () => clearInterval(interval);
+ 
     }
   }, [token, baseUrl]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (salesTrends.length > 0) {
-        getDashboardData(true);
-      } else {
-        setRefreshing(false);
-      }
-      fetchExpiredProducts();
-    }, 30000);
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     if (salesTrends.length > 0) {
+  //       getDashboardData(true);
+  //     } else {
+  //       setRefreshing(false);
+  //     }
+  //     fetchExpiredProducts();
+  //   }, 30000);
 
-    return () => clearInterval(interval);
-  }, [salesTrends]); // Re-run interval if salesTrends changes
+  //   return () => clearInterval(interval);
+  // }, [salesTrends]); 
+  // Re-run interval if salesTrends changes
 
   useEffect(() => {
     if (selectedDate && salesTrends.length > 0) {
