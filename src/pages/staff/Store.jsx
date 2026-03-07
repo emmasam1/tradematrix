@@ -1,7 +1,7 @@
-// File: pages/Store.jsx
+
 
 import React, { useState, useEffect, useRef } from "react";
-import { Button, Modal, Card, message, Input } from "antd";
+import { Button, Modal, Card, message, Input, Divider } from "antd";
 import { IoAdd, IoCloseOutline } from "react-icons/io5";
 import { RiSubtractFill } from "react-icons/ri";
 import { useReactToPrint } from "react-to-print";
@@ -15,6 +15,8 @@ const Store = () => {
   const [loading, setLoading] = useState(false);
   const [receiptLoading, setReceiptLoading] = useState(false);
   const [cart, setCart] = useState([]);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [products, setProducts] = useState([]);
   const [receiptId, setReceiptId] = useState("");
@@ -22,9 +24,7 @@ const Store = () => {
   const [messageApi, contextHolder] = message.useMessage();
   const { baseUrl, token } = useAuthConfig();
   const receiptRef = useRef();
-  const [receiptCount, setReceiptCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
-
   const [receiptData, setReceiptData] = useState(null);
 
   const fetchProducts = async (silent = false) => {
@@ -33,9 +33,7 @@ const Store = () => {
       const { data } = await axios.get(`${baseUrl}/products`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log(data);
       setProducts(data.products || []);
-      if (!silent) messageApi.success("Products loaded");
     } catch (error) {
       messageApi.error("Failed to fetch products.");
     } finally {
@@ -44,11 +42,7 @@ const Store = () => {
   };
 
   useEffect(() => {
-    if (token) {
-      fetchProducts();
-      // const interval = setInterval(() => fetchProducts(true), 20000);
-      // return () => clearInterval(interval);
-    }
+    if (token) fetchProducts();
   }, [baseUrl, token]);
 
   const handleProductClick = (product) => {
@@ -58,69 +52,60 @@ const Store = () => {
       updatedCart[index].quantity += 1;
       setCart(updatedCart);
     } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
+      setCart([
+        ...cart,
+        {
+          ...product,
+          quantity: 1,
+          length: 0,
+          width: 0,
+          negotiatedPrice: product.pricePerSquareMeter,
+        },
+      ]);
     }
   };
 
-  const handlePlusClick = (index) => {
+  const updateCartItem = (index, field, value) => {
     const updatedCart = [...cart];
-    updatedCart[index].quantity += 1;
+    updatedCart[index][field] = value === "" ? "" : Number(value);
     setCart(updatedCart);
-  };
-
-  const handleMinusClick = (index) => {
-    const updatedCart = [...cart];
-    if (updatedCart[index].quantity > 1) {
-      updatedCart[index].quantity -= 1;
-    }
-    setCart(updatedCart);
-  };
-
-  const handleRemoveClick = (index) => {
-    setCart(cart.filter((_, i) => i !== index));
   };
 
   const logReceipt = async () => {
-  setIsModalVisible(true);
-  setReceiptLoading(true);
+    if (cart.length === 0) return messageApi.warning("Cart is empty");
+    
+    setIsModalVisible(true);
+    setReceiptLoading(true);
 
-  try {
-    const payload = {
-      products: cart.map((item) => ({
-        productId: item._id,
-        quantitySold: item.quantity || 1,
-        length: Number(item.length) || 0,
-        width: Number(item.width) || 0,
-        negotiatedPrice: Number(item.negotiatedPrice) || 0,
-      })),
-    };
+    try {
+      const payload = {
+        products: cart.map((item) => ({
+          productId: item._id,
+          quantitySold: Number(item.quantity) || 1,
+          length: Number(item.length) || 0,
+          width: Number(item.width) || 0,
+          negotiatedPrice: Number(item.negotiatedPrice) || 0,
+        })),
+        customerName: customerName || "Walking Customer",
+        customerPhone: customerPhone || "N/A",
+      };
 
-    console.log("payload", payload)
+      const { data } = await axios.post(
+        `${baseUrl}/receipts/preview`,
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-    const { data } = await axios.post(
-      `${baseUrl}/receipts/preview`,
-      payload,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
-
-    setReceiptData(data); // backend provides all totals, lineTotals, etc.
-    setReceiptCount(data.receipt.printCount);
-    setReceiptId(data.receipt._id);
-    setReceiptNumber(data.receipt.receiptCode);
-
-    console.log("Receipt preview from backend:", data);
-  } catch (error) {
-    console.error(error);
-    messageApi.error("Failed to generate receipt.");
-  } finally {
-    setReceiptLoading(false);
-  }
-};
-
-  // const total = cart.reduce(
-  //   (acc, item) => acc + item.unitPrice * item.quantity,
-  //   0
-  // );
+      setReceiptData(data.receipt);
+      setReceiptId(data.receipt._id);
+      setReceiptNumber(data.receipt.receiptCode);
+    } catch (error) {
+      messageApi.error("Failed to generate receipt preview.");
+      setIsModalVisible(false);
+    } finally {
+      setReceiptLoading(false);
+    }
+  };
 
   const handlePrint = useReactToPrint({
     contentRef: receiptRef,
@@ -130,15 +115,14 @@ const Store = () => {
         await axios.post(
           `${baseUrl}/sell-receipt`,
           { receiptId },
-          { headers: { Authorization: `Bearer ${token}` } },
+          { headers: { Authorization: `Bearer ${token}` } }
         );
-        messageApi.success("Products sold!");
-        await fetchProducts();
-        await new Promise((res) => setTimeout(res, 200));
+        messageApi.success("Sale completed successfully!");
+        fetchProducts(true);
         return true;
       } catch (error) {
-        messageApi.error("Sale failed. Printing canceled.");
-        throw new Error("Print canceled.");
+        messageApi.error(error.response?.data?.message || "Sale failed.");
+        return false;
       } finally {
         setLoading(false);
       }
@@ -146,6 +130,8 @@ const Store = () => {
     onAfterPrint: () => {
       setIsModalVisible(false);
       setCart([]);
+      setCustomerName("");
+      setCustomerPhone("");
     },
   });
 
@@ -153,296 +139,112 @@ const Store = () => {
     <div className="p-4">
       {contextHolder}
       <div className="flex flex-col lg:flex-row gap-4">
-        {/* Products Section */}
+        {/* Products Grid */}
         <div className="lg:w-2/3 w-full">
-          <div className="fixed top-15 z-20 bg-white p-3 rounded mb-4 min-w-3/6">
+          <div className="mb-4">
             <Input
-              placeholder="Search products..."
+              placeholder="Search rugs by name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               size="large"
               allowClear
-              className="w-full"
             />
           </div>
 
           {loading ? (
-            <div className="flex justify-center items-center h-60 bg-white">
-              <DotLoader />
-            </div>
+            <div className="flex justify-center p-10"><DotLoader color="#2563eb" /></div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 relative top-12">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {products
-                .filter((product) =>
-                  product.title
-                    .toLowerCase()
-                    .includes(searchTerm.toLowerCase()),
-                )
-                .map((product, index) => {
-                  const isOutOfStock = product.quantity === 0;
-                  // const isExpired = product.expiryDate && new Date(product.expiryDate) < new Date();
-                  const isUnavailable = isOutOfStock;
-                  // const price = product.pricePerSquareMeter
-                  //   ? product.unitPrice - product.discountAmount
-                  //   : product.unitPrice;
-
-                  return (
-                    <Card
-                      key={index}
-                      hoverable={!isUnavailable}
-                      className={`
-    relative rounded-2xl overflow-hidden shadow-md 
-    transition-all duration-300
-    ${isUnavailable ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:shadow-xl hover:-translate-y-1"}
-  `}
-                      onClick={() =>
-                        !isUnavailable && handleProductClick(product)
-                      }
-                      cover={
-                        <div className="h-32 bg-gray-50 flex items-center justify-center p-2">
-                          <img
-                            alt={product.title}
-                            src={product.image || product_default}
-                            className="h-full object-contain transition-transform duration-300 hover:scale-105"
-                          />
-                        </div>
-                      }
-                    >
-                      {/* Discount Badge */}
-                      {/* {product.isDiscount && product.discountAmount > 0 && (
-                        <span className="absolute top-2 right-2 bg-green-600 text-white text-[10px] px-2 py-0.5 rounded-full shadow">
-                          -₦{product.discountAmount.toLocaleString()}
-                        </span>
-                      )} */}
-
-                      {/* Trending Badge */}
-                      {product.isTrending && (
-                        <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full shadow">
-                          🔥 Trending
-                        </span>
-                      )}
-
-                      <div className="pt-2 space-y-1">
-                        <h3 className="font-bold text-sm truncate">
-                          {product.title}
-                        </h3>
-                        <p className="text-base font-semibold text-gray-900">
-                          ₦
-                          {Number(
-                            product.pricePerSquareMeter || 0,
-                          ).toLocaleString()}{" "}
-                          <span className="text-xs font-normal text-gray-500">
-                            /m²
-                          </span>
-                        </p>
-                        <p
-                          className={`text-xs font-medium ${
-                            isOutOfStock
-                              ? "text-red-500"
-                              : product.quantity < 10
-                                ? "text-orange-500"
-                                : "text-green-600"
-                          }`}
-                        >
-                          {isOutOfStock
-                            ? "Out of Stock"
-                            : product.quantity < 10
-                              ? `Low Stock (${product.quantity})`
-                              : `In Stock (${product.quantity})`}
-                        </p>
-                      </div>
-                    </Card>
-                  );
-                })}
-
-              {products.filter((product) =>
-                product.title.toLowerCase().includes(searchTerm.toLowerCase()),
-              ).length === 0 && (
-                <p className="text-center col-span-full">No products found</p>
-              )}
+                .filter((p) => p.title.toLowerCase().includes(searchTerm.toLowerCase()))
+                .map((product) => (
+                  <Card
+                    key={product._id}
+                    hoverable
+                    onClick={() => product.quantity > 0 && handleProductClick(product)}
+                    className={product.quantity === 0 ? "opacity-50" : ""}
+                    cover={<img alt="product" src={product.image || product_default} className="h-32 object-contain p-2" />}
+                  >
+                    <div className="text-xs font-bold truncate">{product.title}</div>
+                    <div className="text-blue-600 font-bold text-sm">₦{product.pricePerSquareMeter?.toLocaleString()}/m²</div>
+                    <div className={product.quantity < 5 ? "text-red-500 text-[10px]" : "text-green-600 text-[10px]"}>
+                      Stock: {product.quantity}
+                    </div>
+                  </Card>
+                ))}
             </div>
           )}
         </div>
 
-        {/* Cart Section */}
+        {/* Cart Sidebar */}
         <div className="lg:w-1/3 w-full">
-          <div className="sticky top-4">
-            <div className="bg-white p-4 rounded shadow-md">
-              <h2 className="text-lg font-bold mb-4">Cart</h2>
-
-              {cart.length === 0 ? (
-                <p className="text-gray-500">Cart is empty</p>
-              ) : (
-                <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
-                  {cart.map((item, index) => {
-                    return (
-                      <div
-                        key={index}
-                        className="flex flex-col border rounded-lg p-3 gap-2"
-                      >
-                        {/* Product Info */}
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-2">
-                            <img
-                              src={item.image || product_default}
-                              alt={item.title}
-                              className="w-10 h-10 object-contain"
-                            />
-                            <div>
-                              <h4 className="text-sm font-semibold">
-                                {item.title}
-                              </h4>
-                              <p className="text-xs text-gray-500">
-                                ₦
-                                {(
-                                  item.pricePerSquareMeter || 0
-                                ).toLocaleString()}
-                              </p>
-
-                              {/* Show negotiated price in blue */}
-                              {item.negotiatedPrice > 0 && (
-                                <p className="text-xs text-blue-600 font-medium">
-                                  Negotiated: ₦
-                                  {(item.negotiatedPrice || 0).toLocaleString()}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Quantity Controls */}
-                          <div className="flex items-center gap-1">
-                            <div
-                              className="bg-red-500 text-white p-1 rounded cursor-pointer"
-                              onClick={() => handleMinusClick(index)}
-                            >
-                              <RiSubtractFill size={16} />
-                            </div>
-
-                            <span className="px-2 text-sm">
-                              {item.quantity}
-                            </span>
-
-                            <div
-                              className="bg-blue-500 text-white p-1 rounded cursor-pointer"
-                              onClick={() => handlePlusClick(index)}
-                            >
-                              <IoAdd size={16} />
-                            </div>
-
-                            <Button
-                              type="text"
-                              size="small"
-                              danger
-                              onClick={() => handleRemoveClick(index)}
-                            >
-                              <IoCloseOutline />
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* Row & Col + Negotiated Price Inputs */}
-                        <div className="grid grid-cols-3 gap-2 mt-2">
-                          <Input
-                            type="number"
-                            min={0}
-                            placeholder="Row"
-                            value={item.length || ""}
-                            onChange={(e) => {
-                              const updatedCart = [...cart];
-                              updatedCart[index].length =
-                                e.target.value === ""
-                                  ? ""
-                                  : Number(e.target.value);
-                              setCart(updatedCart);
-                            }}
-                            className="text-xs"
-                          />
-
-                          <Input
-                            type="number"
-                            min={0}
-                            placeholder="Col"
-                            value={item.width || ""}
-                            onChange={(e) => {
-                              const updatedCart = [...cart];
-                              updatedCart[index].width =
-                                e.target.value === ""
-                                  ? ""
-                                  : Number(e.target.value);
-                              setCart(updatedCart);
-                            }}
-                            className="text-xs"
-                          />
-
-                          <Input
-                            type="number"
-                            min={0}
-                            placeholder="Negotiated Price"
-                            value={item.negotiatedPrice || ""}
-                            onChange={(e) => {
-                              const updatedCart = [...cart];
-                              updatedCart[index].negotiatedPrice =
-                                e.target.value === ""
-                                  ? ""
-                                  : Number(e.target.value);
-                              setCart(updatedCart);
-                            }}
-                            className="text-xs"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Checkout */}
-              <Button
-                type="primary"
-                className="w-full mt-4 bg-blue-600"
-                onClick={logReceipt}
-                disabled={cart.length === 0}
-              >
-                Checkout
-              </Button>
+          <div className="bg-white p-4 rounded-xl shadow-sm border sticky top-4">
+            <h2 className="text-lg font-bold mb-2">Checkout Cart</h2>
+            
+            {/* Customer Inputs */}
+            <div className="space-y-2 mb-4">
+               <Input 
+                 placeholder="Customer Name" 
+                 value={customerName} 
+                 onChange={(e) => setCustomerName(e.target.value)} 
+               />
+               <Input 
+                 placeholder="Phone Number" 
+                 value={customerPhone} 
+                 onChange={(e) => setCustomerPhone(e.target.value)} 
+               />
             </div>
+            
+            <Divider className="my-2" />
+
+            <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
+              {cart.map((item, index) => (
+                <div key={index} className="border p-3 rounded-lg bg-gray-50">
+                  <div className="flex justify-between font-bold text-sm mb-2">
+                    <span className="truncate w-4/5">{item.title}</span>
+                    <IoCloseOutline className="text-red-500 cursor-pointer" onClick={() => setCart(cart.filter((_, i) => i !== index))} />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-[10px] text-gray-500 uppercase">Len (m)</label>
+                      <Input type="number" size="small" value={item.length} onChange={(e) => updateCartItem(index, "length", e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 uppercase">Wid (m)</label>
+                      <Input type="number" size="small" value={item.width} onChange={(e) => updateCartItem(index, "width", e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 uppercase">Rate</label>
+                      <Input type="number" size="small" value={item.negotiatedPrice} onChange={(e) => updateCartItem(index, "negotiatedPrice", e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="flex items-center gap-2">
+                      <RiSubtractFill className="bg-white border rounded p-1 cursor-pointer" onClick={() => updateCartItem(index, "quantity", Math.max(1, item.quantity - 1))} />
+                      <span className="text-sm font-medium">{item.quantity}</span>
+                      <IoAdd className="bg-white border rounded p-1 cursor-pointer" onClick={() => updateCartItem(index, "quantity", item.quantity + 1)} />
+                    </div>
+                    <span className="text-xs font-bold text-blue-700">
+                      ₦{(item.length * item.width * item.negotiatedPrice * item.quantity).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Button type="primary" block size="large" className="mt-6 h-12 bg-blue-600" onClick={logReceipt} disabled={cart.length === 0}>
+              Preview & Generate
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Modal for Receipt Preview */}
-      <Modal
-        open={isModalVisible}
-        onCancel={() => setIsModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setIsModalVisible(false)}>
-            Close
-          </Button>,
-          <Button
-            key="print"
-            type="primary"
-            className="bg-blue-600"
-            onClick={handlePrint}
-            loading={loading}
-          >
-            Print Receipt
-          </Button>,
-        ]}
-      >
-        {receiptLoading ? (
-          <div className="flex justify-center items-center h-60">
-            <DotLoader />
-          </div>
-        ) : (
-          <Receipt
-            ref={receiptRef}
-            cart={cart}
-            // total={total}
-            receiptId={receiptId}
-            receiptNumber={receiptNumber}
-            receiptCount={receiptCount}
-            receiptData={receiptData}
-          />
+      <Modal open={isModalVisible} onCancel={() => setIsModalVisible(false)} width={900} footer={[
+        <Button key="close" onClick={() => setIsModalVisible(false)}>Cancel</Button>,
+        <Button key="print" type="primary" className="bg-blue-600" onClick={handlePrint} loading={loading}>Complete Sale & Print</Button>
+      ]}>
+        {receiptLoading ? <div className="h-60 flex justify-center items-center"><DotLoader color="#2563eb" /></div> : (
+          <Receipt ref={receiptRef} receiptData={receiptData} receiptNumber={receiptNumber} />
         )}
       </Modal>
     </div>
