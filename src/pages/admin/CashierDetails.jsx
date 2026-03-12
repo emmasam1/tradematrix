@@ -144,9 +144,10 @@ const CashierDetails = () => {
         <Table
           dataSource={transactions}
           columns={columns}
+          size="small"
           rowKey="_id"
           pagination={{ pageSize: 10 }}
-          className="border-t border-gray-100"
+          className="border-t border-gray-100 custom-pagination"
         />
       </Card>
     </div>

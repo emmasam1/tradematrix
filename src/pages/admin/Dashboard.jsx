@@ -264,6 +264,7 @@ const downloadPDFReport = () => {
             dataSource={topProducts}
             rowKey="_id"
             pagination={{ pageSize: 5 }}
+            className="custom-pagination"
           />
         </div>
 
@@ -325,7 +326,8 @@ const downloadPDFReport = () => {
               columns={cashierColumns}
               dataSource={cashierBreakdown}
               rowKey="cashierId"
-              pagination={{ pageSize: 5 }}
+              className="custom-pagination"
+              pagination={{ pageSize: 5, position: "center" }}
               onRow={(record) => ({
                 onClick: () => navigate(`/dashboard/cashier-details/${record.cashierId}`),
                 className: "cursor-pointer hover:bg-blue-50 transition-colors"

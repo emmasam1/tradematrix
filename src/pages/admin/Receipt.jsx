@@ -125,7 +125,7 @@ const ReceiptSearch = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      console.log(response.data);
+      // console.log(response.data);
     } catch (error) {
       console.error("Error fetching receipt:", error);
       messageApi.error("Error fetching receipt.");
