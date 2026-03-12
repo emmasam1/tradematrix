@@ -16,6 +16,7 @@ import CryptoJS from "crypto-js";
 import * as jwt_decode from "jwt-decode";
 import axios from "axios";
 import { useReactToPrint } from "react-to-print"; // Uncomment and implement this if needed for receipt printing
+import Receipt from "../components/receipt/Receipt";
 
 const { Text } = Typography; 
 
@@ -45,7 +46,6 @@ const StaffDashboardLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const receiptRef = useRef();
-  const receiptWidth = "90mm";
 
   // console.log(user)
 
@@ -326,6 +326,7 @@ const StaffDashboardLayout = () => {
       <Modal
         open={reprint}
         onCancel={() => setReprint(false)}
+         width={900}
         footer={
           <Button type="primary" onClick={handlePrint} loading={loading}>
             Re-Print Receipt
@@ -335,99 +336,7 @@ const StaffDashboardLayout = () => {
         {loading || !receiptData ? (
           <DotLoader color="#1890ff" loading={true} size={60} />
         ) : (
-          <div
-            ref={receiptRef} // ✅ Printable content
-            className="p-4 relative"
-            style={{ width: "90mm", margin: "auto" }}
-          >
-            <h2 className="text-xl font-bold mb-2">
-              {receiptData.shop?.name || "Shop"}
-            </h2>
-            <p className="text-sm mb-1 font-semibold">
-              {receiptData.shop?.shopAddress || "Shop Address"}
-            </p>
-            <p className="text-sm mb-1 font-semibold">
-              Tel: {receiptData.shop?.shopPhone}
-            </p>
-            <p className="text-sm mb-2 font-semibold">
-              Email: {receiptData.shop?.shopEmail}
-            </p>
-
-            <div className="flex justify-between">
-              <p>{formatDate(receiptData.soldAt)}</p>
-              <p>{formatTime(receiptData.soldAt)}</p>
-            </div>
-
-            <div className="flex justify-between">
-              <p>Cashier:</p>
-              <p className="uppercase font-semibold">
-                {receiptData.cashier?.firstName} {receiptData.cashier?.lastName}
-              </p>
-            </div>
-            <h2 className="watermark">{receiptData.shop?.name}</h2>
-            {receiptData.printCount > 1 ? (
-              <h2 className="copy_watermark">copy</h2>
-            ) : null}
-
-            <div className="flex justify-between">
-              <p>Receipt No:</p>
-              <p className="font-semibold">{receiptData.receiptCode}</p>
-            </div>
-
-            <div className="text-center">
-              {"*".repeat(Math.floor(parseInt(receiptWidth) / 1.9))}
-            </div>
-
-            <div className="font-bold flex justify-between mb-1">
-              <span className="w-3/9">Item</span>
-              <span className="w-2/12 text-center">Qty</span>
-              <span className="w-3/12 text-center">Unit</span>
-              <span className="w-4/12 text-right">Total</span>
-            </div>
-
-            {receiptData.enrichedProducts?.map((item) => (
-              <div key={item._id} className="flex justify-between">
-                <span className="w-3/9">
-                  {item.productDetails?.title || "N/A"}
-                </span>
-                <span className="w-2/12 text-center">{item.quantity}</span>
-                <span className="w-3/12 text-center">
-                  {item.priceAtSale - item.discount}
-                </span>
-                <span className="w-4/12 text-right">
-                  {formatCurrency(
-                    (item.priceAtSale - item.discount) * item.quantity
-                  )}
-                </span>
-              </div>
-            ))}
-
-            <div className="text-center">
-              {"*".repeat(Math.floor(parseInt(receiptWidth) / 1.9))}
-            </div>
-            <div className="flex justify-between font-bold">
-              <span>Total:</span>
-              <span>{formatCurrency(receiptData.totalAmount)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Discount:</span>
-              <span>{formatCurrency(receiptData.discountTotal)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>VAT:</span>
-              <span>{formatCurrency(receiptData.vatAmount)}</span>
-            </div>
-            <div className="text-center">
-              {"*".repeat(Math.floor(parseInt(receiptWidth) / 1.9))}
-            </div>
-
-            <p className="text-center mt-3 italic text-sm">
-              Thanks for your purchase.
-            </p>
-            <p className="text-right font-bold text-xs">
-              No refund after payment.
-            </p>
-          </div>
+        <Receipt ref={receiptRef} receiptData={receiptData} />
         )}
       </Modal>
 
