@@ -82,20 +82,30 @@ const Dashboard = () => {
       });
 
       // console.log("dash details", dashboardRes.data.cashierDailyBreakdown);
-      setCashierDailyBreakdown(dashboardRes.data.cashierDailyBreakdown || []);
+      setCashierBreakdown(dashboardRes.data.cashierBreakdown || []);
 
       const users = usersRes.data?.users || [];
 
-      // Map cashier ID to full user object
-      const enrichedCashierBreakdown = cashierBreakdown.map((entry) => {
+      const enrichedCashierBreakdown = (
+        dashboardRes.data.cashierBreakdown || []
+      ).map((entry) => {
         const cashier = users.find((user) => user._id === entry.cashierId);
+
         return {
           ...entry,
-          cashier: cashier || { fullName: "Unknown", _id: entry.cashierId },
+          name: cashier
+            ? `${cashier.firstName} ${cashier.lastName}`
+            : entry.name || "Unknown",
         };
       });
 
-      const userDailyBrakeDown = dashboardRes.data.cashierDailyBreakdown
+      setCashierBreakdown(enrichedCashierBreakdown);
+
+      console.log("enrichedCashierBreakdown", enrichedCashierBreakdown);
+
+      const dailyBreakdown = dashboardRes?.data?.cashierDailyBreakdown || [];
+
+      const userDailyBrakeDown = dailyBreakdown
         .map((entry) => {
           const cashier = users.find((user) => user.email === entry.email);
           return {
@@ -118,7 +128,7 @@ const Dashboard = () => {
       setSalesTrends(salesTrends || []);
       setCashierBreakdown(enrichedCashierBreakdown);
       setTopProducts(
-        (topProducts || []).sort((a, b) => b.totalSold - a.totalSold)
+        (topProducts || []).sort((a, b) => b.totalSold - a.totalSold),
       );
     } catch (err) {
       console.error("Dashboard data fetch error:", err);
@@ -137,7 +147,7 @@ const Dashboard = () => {
 
       const now = new Date();
       const expired = data.products?.filter(
-        (p) => new Date(p.expiryDate) < now
+        (p) => new Date(p.expiryDate) < now,
       );
       setExpiredCount(expired.length);
     } catch (err) {
@@ -164,7 +174,7 @@ const Dashboard = () => {
   // );
   const filteredMonthSales = React.useMemo(() => {
     return salesTrends.filter(
-      (item) => dayjs(item.date).month() + 1 === selectedMonth
+      (item) => dayjs(item.date).month() + 1 === selectedMonth,
     );
   }, [salesTrends, selectedMonth]);
 
@@ -175,73 +185,39 @@ const Dashboard = () => {
         acc.totalTransactions += item.totalTransactions || 0;
         return acc;
       },
-      { totalSales: 0, totalTransactions: 0 }
+      { totalSales: 0, totalTransactions: 0 },
     );
   }, [filteredMonthSales]);
 
   useEffect(() => {
-  const fetchSalesData = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(
-        `${baseUrl}/dashboard?month=${selectedMonth}&year=${selectedYear}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+    const fetchSalesData = async () => {
+      if (!token) return;
+      try {
+        setLoading(true);
+        const response = await axios.get(
+          `${baseUrl}/dashboard?month=${selectedMonth}&year=${selectedYear}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
 
-      setDashboardData(response.data);
-      setSalesTrends(response.data.salesTrends || []);
-      setMonthlySales(response.data.monthlySummary?.totalSales || 0);
+        setDashboardData(response.data);
+        setSalesTrends(response.data.salesTrends || []);
+        setMonthlySales(response.data.monthlySummary?.totalSales || 0);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchSalesData();
-}, [selectedMonth, selectedYear, token]);
-
-  // useEffect(() => {
-  //   const fetchSalesData = async () => {
-  //     try {
-  //       setLoading(true);
-  //       const response = await axios.get(
-  //         `${baseUrl}/dashboard?month=${selectedMonth}&year=${selectedYear}`,
-  //         {
-  //           headers: { Authorization: `Bearer ${token}` },
-  //         }
-  //       );
-  //       setDashboardData(response.data);
-  //       setSalesTrends(response.data.salesTrends || []);
-  //       setMonthlySales(response.data.monthlySummary?.totalSales || 0);
-
-  //       setSelectedMonth(dayjs().month() + 1);
-  //       setSelectedYear(dayjs().year());
-
-  //       // console.log("this is it", response.data.monthlySummary.totalSales);
-  //       // console.log(
-  //       //   "Fetched data for month:",
-  //       //   selectedMonth,
-  //       //   "year:",
-  //       //   selectedYear
-  //       // );
-  //     } catch (error) {
-  //       console.error("Error fetching dashboard data:", error);
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
-
-  //   fetchSalesData();
-  // }, [selectedMonth, selectedYear, token]);
+    fetchSalesData();
+  }, [selectedMonth, selectedYear, token]);
 
   const calculateDailySales = () => {
     const selected = dayjs(selectedDate).format("YYYY-MM-DD");
     const found = salesTrends.find(
-      (item) => dayjs(item.date).format("YYYY-MM-DD") === selected
+      (item) => dayjs(item.date).format("YYYY-MM-DD") === selected,
     );
     setDailySales(found?.totalSales || 0);
   };
@@ -253,45 +229,12 @@ const Dashboard = () => {
     localStorage.setItem("selectedDate", date.format("YYYY-MM-DD"));
   }, []);
 
-  // useEffect(() => {
-  //   if (token && baseUrl) {
-  //     getDashboardData(); // Initial load (with loader)
-  //     fetchExpiredProducts();
-
-  //     const interval = setInterval(() => {
-  //       if (salesTrends.length > 0) {
-  //         getDashboardData(true);
-  //       }else{
-  //         refreshing(false)
-  //       }
-  //       fetchExpiredProducts();
-  //     }, 30000);
-
-  //     return () => clearInterval(interval);
-  //   }
-  // }, [baseUrl, token]);
   useEffect(() => {
     if (token && baseUrl) {
       getDashboardData();
       fetchExpiredProducts();
-
- 
     }
   }, [token, baseUrl]);
-
-  // useEffect(() => {
-  //   const interval = setInterval(() => {
-  //     if (salesTrends.length > 0) {
-  //       getDashboardData(true);
-  //     } else {
-  //       setRefreshing(false);
-  //     }
-  //     fetchExpiredProducts();
-  //   }, 30000);
-
-  //   return () => clearInterval(interval);
-  // }, [salesTrends]); 
-  // Re-run interval if salesTrends changes
 
   useEffect(() => {
     if (selectedDate && salesTrends.length > 0) {
@@ -341,26 +284,24 @@ const Dashboard = () => {
   ];
 
   const CashierChart = ({ data }) => {
-    console.log("raw chart input", data);
-
     const formattedData = data.map((item) => ({
-      firstName: item.cashier?.firstName || "Unknown",
-      sales: item.totalSales,
+      name: item.name || "Unknown",
+      sales: item.totalSales || 0,
     }));
-
-    console.log("chart data", formattedData);
 
     return (
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={formattedData}>
-          <XAxis dataKey="firstName" />
+          <XAxis dataKey="name" />
           <YAxis />
-          <Tooltip />
+          <Tooltip formatter={(value) => `₦${value.toLocaleString()}`} />
           <Bar dataKey="sales" fill="#34d399" />
         </BarChart>
       </ResponsiveContainer>
     );
   };
+
+  console.log("cashierBreakdown state:", cashierBreakdown);
 
   return (
     <div className="p-4">
@@ -413,18 +354,6 @@ const Dashboard = () => {
                 ))}
               </Select>
             </Space>
-
-            {/* <Select
-              className="w-28 text-black"
-              value={selectedMonth}
-              onChange={(value) => setSelectedMonth(Number(value))} // ensure it's a number
-            >
-              {Array.from({ length: 12 }, (_, i) => (
-                <Select.Option key={i + 1} value={i + 1}>
-                  {dayjs().month(i).format("MMMM")}
-                </Select.Option>
-              ))}
-            </Select> */}
           </div>
         </div>
 
@@ -490,7 +419,7 @@ const Dashboard = () => {
                 size="small"
                 columns={columns}
                 dataSource={topProducts}
-                rowKey="_id"
+                rowKey={(record) => record.cashierId || record._id}
                 pagination={{
                   pageSize: 7,
                   position: ["bottomCenter"],
@@ -550,7 +479,7 @@ const Dashboard = () => {
               size="middle"
               columns={cashierColumns}
               dataSource={cashierDailyBreakdown}
-              rowKey="_id"
+              rowKey={(record) => record.cashierId || record._id}
               pagination={{
                 pageSize: 5,
                 position: ["bottomCenter"],
@@ -572,11 +501,10 @@ const Dashboard = () => {
                 <Pie
                   data={cashierBreakdown}
                   dataKey="totalSales"
-                  nameKey="cashier.firstName"
+                  nameKey="name"
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
-                  fill="#8884d8"
                   label
                 >
                   {cashierBreakdown.map((entry, index) => (
@@ -586,7 +514,9 @@ const Dashboard = () => {
                     />
                   ))}
                 </Pie>
-                <Tooltip />
+
+                <Tooltip formatter={(value) => `₦${value.toLocaleString()}`} />
+
                 <Legend
                   layout="vertical"
                   verticalAlign="middle"

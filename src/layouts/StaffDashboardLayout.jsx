@@ -246,7 +246,7 @@ const StaffDashboardLayout = () => {
           height: "100vh",
           backgroundColor: "#ffffff",
           // boxShadow: "2px 0 8px rgba(0,0,0,0.05)",
-          zIndex: 1000,
+          // zIndex: 1000,
           paddingTop: 16,
         }}
       >
@@ -463,7 +463,7 @@ const StaffDashboardLayout = () => {
       <Dialog
         open={isModalVisible}
         onClose={handleCancel}
-        className="relative z-10"
+        className="relative z-[100]"
       >
         <DialogBackdrop className="fixed inset-0 bg-gray-500/75" />
         <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
