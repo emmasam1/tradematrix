@@ -13,6 +13,7 @@ import Store from "./pages/staff/Store";
 import Receipt from "./pages/admin/Receipt";
 import ForgetPassword from "./pages/auth/ForgetPassword";
 import SetPassword from "./pages/auth/SetPassword";
+import CashierDetails from "./pages/admin/CashierDetails";
 
 const App = () => {
   return (
@@ -29,6 +30,7 @@ const App = () => {
             <Route path="staffs" element={<Staff />} />
             <Route path="categories" element={<Categories />} />
             <Route path="receipt" element={<Receipt />} />
+            <Route path="cashier-details/:id" element={<CashierDetails />} />
           </Route>
           <Route path="/store" element={<StaffDashboardLayout />}>
          

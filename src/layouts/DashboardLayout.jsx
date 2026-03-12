@@ -52,6 +52,9 @@ const DashboardLayout = () => {
     case "/dashboard/receipt":
       title = "Receipt";
       break;
+    case "/dashboard/cashier-details":
+      title = "Cashier Details";
+      break;
     case "/dashboard/categories":
       title = "Categories";
       break;

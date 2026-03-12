@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   PieChart,
   Pie,
-  Sector,
   LineChart,
   Line,
   Cell,
@@ -17,297 +16,167 @@ import {
 import axios from "axios";
 import { useAuthConfig } from "../../context/AppState";
 import { message, DatePicker, Table, Select, Spin, Button, Space } from "antd";
+import { useNavigate } from "react-router";
 import dayjs from "dayjs";
 import DotLoader from "react-spinners/DotLoader";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable"; // Import the function directly
+import localizedFormat from "dayjs/plugin/localizedFormat";
+dayjs.extend(localizedFormat);
+
 
 const COLORS = [
-  "#0088FE",
-  "#00C49F",
-  "#FFBB28",
-  "#FF8042",
-  "#FF6666",
-  "#A28CFF",
-  "#33CCCC",
-  "#FF33A1",
-  "#66FF66",
-  "#FF9933",
+  "#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#FF6666",
+  "#A28CFF", "#33CCCC", "#FF33A1", "#66FF66", "#FF9933",
 ];
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false); // New state for silent background refresh
-  const [expiredCount, setExpiredCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const [salesTrends, setSalesTrends] = useState([]);
   const [cashierBreakdown, setCashierBreakdown] = useState([]);
-  const [cashierDailyBreakdown, setCashierDailyBreakdown] = useState([]);
-  const [dailySales, setDailySales] = useState(0);
-  const [selectedDate, setSelectedDate] = useState(null);
-  // const [selectedMonth, setSelectedMonth] = useState(dayjs().month() + 1);
   const [topProducts, setTopProducts] = useState([]);
-  const [messageApi, contextHolder] = message.useMessage();
-  const [transaction, setTransaction] = useState(0);
+  const [categorySummary, setCategorySummary] = useState([]);
+  const [summary, setSummary] = useState({});
+  const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [dailySales, setDailySales] = useState(0);
   const [viewChart, setViewChart] = useState(false);
-
   const [selectedMonth, setSelectedMonth] = useState(dayjs().month() + 1);
   const [selectedYear, setSelectedYear] = useState(dayjs().year());
-  const [dashboardData, setDashboardData] = useState();
-  const [monthlySales, setMonthlySales] = useState(0);
 
+  const [messageApi, contextHolder] = message.useMessage();
   const { baseUrl, token } = useAuthConfig();
+  const navigate = useNavigate();
 
-  const formatCurrency = (amount) =>
-    new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(amount);
-
-  const getDashboardData = async (isSilent = false) => {
+  const fetchDashboardData = async (isSilent = false) => {
+    if (!token) return;
     if (!isSilent) setLoading(true);
     else setRefreshing(true);
 
     try {
-      const dashboardRes = await axios.get(`${baseUrl}/dashboard`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      console.log("here", dashboardRes);
-      // console.log("here", dashboardRes.data?.monthlySummary);
-      // setMonthlySales(dashboardRes.data?.monthlySummary)
-      setTransaction(dashboardRes.data?.monthlySummary?.totalTransactions);
-      const { salesTrends, cashierBreakdown, topProducts } = dashboardRes.data;
-
-      const usersRes = await axios.get(`${baseUrl}/users`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      // console.log("dash details", dashboardRes.data.cashierDailyBreakdown);
-      setCashierBreakdown(dashboardRes.data.cashierBreakdown || []);
-
-      const users = usersRes.data?.users || [];
-
-      const enrichedCashierBreakdown = (
-        dashboardRes.data.cashierBreakdown || []
-      ).map((entry) => {
-        const cashier = users.find((user) => user._id === entry.cashierId);
-
-        return {
-          ...entry,
-          name: cashier
-            ? `${cashier.firstName} ${cashier.lastName}`
-            : entry.name || "Unknown",
-        };
-      });
-
-      setCashierBreakdown(enrichedCashierBreakdown);
-
-      console.log("enrichedCashierBreakdown", enrichedCashierBreakdown);
-
-      const dailyBreakdown = dashboardRes?.data?.cashierDailyBreakdown || [];
-
-      const userDailyBrakeDown = dailyBreakdown
-        .map((entry) => {
-          const cashier = users.find((user) => user.email === entry.email);
-          return {
-            ...entry,
-            cashier: cashier || { fullName: "Unknown", _id: entry.cashierId },
-            firstName: cashier?.firstName || "Unknown",
-            lastName: cashier?.lastName || "",
-            fullName: cashier
-              ? `${cashier.firstName} ${cashier.lastName}`
-              : "Unknown",
-          };
-        })
-        .sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by date descending
-
-      setCashierDailyBreakdown(userDailyBrakeDown);
-
-      // console.log("user:", userDailyBrakeDown);
-      // console.log(enrichedCashierBreakdown)
-
-      setSalesTrends(salesTrends || []);
-      setCashierBreakdown(enrichedCashierBreakdown);
-      setTopProducts(
-        (topProducts || []).sort((a, b) => b.totalSold - a.totalSold),
+      const response = await axios.get(
+        `${baseUrl}/dashboard?month=${selectedMonth}&year=${selectedYear}`,
+        { headers: { Authorization: `Bearer ${token}` } }
       );
+
+      const data = response.data;
+      setSummary(data.monthlySummary || {});
+      setSalesTrends(data.salesTrends || []);
+      setTopProducts(data.topProducts || []);
+      setCashierBreakdown(data.cashierBreakdown || []);
+      setCategorySummary(data.categorySummary || []);
+      
+      const selectedStr = selectedDate.format("YYYY-MM-DD");
+      const found = data.salesTrends?.find(item => item.date === selectedStr);
+      setDailySales(found?.totalSales || 0);
+
     } catch (err) {
-      console.error("Dashboard data fetch error:", err);
+      console.error("Dashboard fetch error:", err);
       messageApi.error("Failed to load dashboard data.");
     } finally {
-      if (!isSilent) setLoading(false);
-      else setRefreshing(false);
+      setLoading(false);
+      setRefreshing(false);
     }
   };
-
-  const fetchExpiredProducts = async () => {
-    try {
-      const { data } = await axios.get(`${baseUrl}/products`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const now = new Date();
-      const expired = data.products?.filter(
-        (p) => new Date(p.expiryDate) < now,
-      );
-      setExpiredCount(expired.length);
-    } catch (err) {
-      console.error("Error fetching products:", err);
-    }
-  };
-
-  const handleDateChange = (date) => {
-    setSelectedDate(date);
-    localStorage.setItem("selectedDate", date.format("YYYY-MM-DD"));
-  };
-
-  // const filteredMonthSales = salesTrends.filter(
-  //   (item) => dayjs(item.date).month() + 1 === selectedMonth
-  // );
-
-  // const computedMonthlySales = filteredMonthSales.reduce(
-  //   (acc, item) => {
-  //     acc.totalSales += item.totalSales;
-  //     acc.totalTransactions += item.totalTransactions || 0;
-  //     return acc;
-  //   },
-  //   { totalSales: 0, totalTransactions: 0 }
-  // );
-  const filteredMonthSales = React.useMemo(() => {
-    return salesTrends.filter(
-      (item) => dayjs(item.date).month() + 1 === selectedMonth,
-    );
-  }, [salesTrends, selectedMonth]);
-
-  const computedMonthlySales = React.useMemo(() => {
-    return filteredMonthSales.reduce(
-      (acc, item) => {
-        acc.totalSales += item.totalSales;
-        acc.totalTransactions += item.totalTransactions || 0;
-        return acc;
-      },
-      { totalSales: 0, totalTransactions: 0 },
-    );
-  }, [filteredMonthSales]);
 
   useEffect(() => {
-    const fetchSalesData = async () => {
-      if (!token) return;
-      try {
-        setLoading(true);
-        const response = await axios.get(
-          `${baseUrl}/dashboard?month=${selectedMonth}&year=${selectedYear}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
-
-        setDashboardData(response.data);
-        setSalesTrends(response.data.salesTrends || []);
-        setMonthlySales(response.data.monthlySummary?.totalSales || 0);
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSalesData();
+    fetchDashboardData();
   }, [selectedMonth, selectedYear, token]);
 
-  const calculateDailySales = () => {
-    const selected = dayjs(selectedDate).format("YYYY-MM-DD");
-    const found = salesTrends.find(
-      (item) => dayjs(item.date).format("YYYY-MM-DD") === selected,
-    );
+  const handleDateChange = (date) => {
+    if (!date) return;
+    setSelectedDate(date);
+    const selectedStr = date.format("YYYY-MM-DD");
+    const found = salesTrends.find(item => item.date === selectedStr);
     setDailySales(found?.totalSales || 0);
   };
 
-  useEffect(() => {
-    const savedDate = localStorage.getItem("selectedDate");
-    const date = savedDate ? dayjs(savedDate) : dayjs();
-    setSelectedDate(date);
-    localStorage.setItem("selectedDate", date.format("YYYY-MM-DD"));
-  }, []);
+const downloadPDFReport = () => {
+    const doc = new jsPDF();
+    const dateStr = dayjs().format("YYYY-MM-DD_HH-mm");
 
-  useEffect(() => {
-    if (token && baseUrl) {
-      getDashboardData();
-      fetchExpiredProducts();
-    }
-  }, [token, baseUrl]);
+    // Helper to replace the Naira symbol with "N" to avoid encoding errors
+    const formatCurrencyForPDF = (val) => {
+      if (!val) return "N0.00";
+      // Replaces the Unicode Naira symbol with a standard 'N'
+      return typeof val === "string" ? val.replace(/₦/g, "N") : `N${val.toLocaleString()}`;
+    };
 
-  useEffect(() => {
-    if (selectedDate && salesTrends.length > 0) {
-      calculateDailySales();
-    }
-  }, [selectedDate, salesTrends]);
+    doc.setFontSize(18);
+    doc.text("Sales Dashboard Report", 14, 20);
+    doc.setFontSize(11);
+    doc.text(`Period: ${dayjs().month(selectedMonth - 1).format("MMMM")} ${selectedYear}`, 14, 30);
+    doc.text(`Generated on: ${dayjs().format("lll")}`, 14, 37);
 
-  const columns = [
+    // Summary Statistics
+    autoTable(doc, {
+      startY: 45,
+      head: [['Metric', 'Value']],
+      body: [
+        ['Monthly Revenue', formatCurrencyForPDF(summary.formattedActualRevenue)],
+        ['Potential Revenue', formatCurrencyForPDF(summary.formattedPotentialRevenue)],
+        ['Negotiation Loss Rate', `${summary.negotiationLossRate || 0}%`],
+        ['Total Transactions', summary.totalTransactions || 0],
+        ['Total Area Sold', summary.formattedAreaSold || "0 sqm"],
+      ],
+      theme: 'striped',
+      headStyles: { fillStyle: [31, 41, 55] },
+    });
+
+    const finalY = doc.lastAutoTable.finalY;
+
+    // Top Products Table
+    doc.setFontSize(14);
+    doc.text("Top Selling Products", 14, finalY + 15);
+
+    autoTable(doc, {
+      startY: finalY + 20,
+      head: [['Product', 'Qty Sold', 'Revenue']],
+      body: topProducts.map(p => [
+        p.title, 
+        p.totalSold, 
+        formatCurrencyForPDF(p.formattedRevenue)
+      ]),
+      theme: 'grid',
+      headStyles: { fillStyle: [79, 70, 229] },
+    });
+
+    doc.save(`Dashboard_Report_${dateStr}.pdf`);
+  };
+  const productColumns = [
     { title: "Product Name", dataIndex: "title", key: "title" },
-    { title: "Quantity Sold", dataIndex: "totalSold", key: "totalSold" },
+    { title: "Qty Sold", dataIndex: "totalSold", key: "totalSold" },
+    { title: "Revenue", dataIndex: "formattedRevenue", key: "formattedRevenue" },
   ];
 
   const cashierColumns = [
-    {
-      title: "First Name",
-      dataIndex: "firstName",
-      key: "firstName",
-    },
-    {
-      title: "Last Name",
-      dataIndex: "lastName",
-      key: "lastName",
-    },
-
-    {
-      title: "Date",
-      dataIndex: "date",
-      key: "date",
-    },
-    {
-      title: "Total Sales",
-      dataIndex: "totalSales",
-      key: "totalSales",
-      render: (value) => `₦${value.toLocaleString()}`,
-    },
-    {
-      title: "Total Discount",
-      dataIndex: "totalDiscount",
-      key: "totalDiscount",
-      render: (value) => `₦${value.toLocaleString()}`,
-    },
-    {
-      title: "Transactions",
-      dataIndex: "transactions",
-      key: "transactions",
+    { title: "Cashier", dataIndex: "name", key: "name" },
+    { title: "Transactions", dataIndex: "transactions", key: "transactions" },
+    { title: "Sales", dataIndex: "formattedSales", key: "formattedSales" },
+    { 
+        title: "Loss Rate", 
+        dataIndex: "discountPercentage", 
+        key: "discountPercentage",
+        render: (val) => `${val}%`
     },
   ];
-
-  const CashierChart = ({ data }) => {
-    const formattedData = data.map((item) => ({
-      name: item.name || "Unknown",
-      sales: item.totalSales || 0,
-    }));
-
-    return (
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={formattedData}>
-          <XAxis dataKey="name" />
-          <YAxis />
-          <Tooltip formatter={(value) => `₦${value.toLocaleString()}`} />
-          <Bar dataKey="sales" fill="#34d399" />
-        </BarChart>
-      </ResponsiveContainer>
-    );
-  };
-
-  console.log("cashierBreakdown state:", cashierBreakdown);
 
   return (
     <div className="p-4">
       {contextHolder}
+      
+      {/* Header Actions */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Business Overview</h1>
+        <Button 
+          type="primary" 
+          className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+          onClick={downloadPDFReport}
+        >
+          📄 Download PDF Report
+        </Button>
+      </div>
 
-      {/* Optional top-right mini refresh indicator */}
       {refreshing && (
         <div className="absolute top-4 right-6 z-10">
           <Spin size="small" />
@@ -316,215 +185,178 @@ const Dashboard = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <div className="bg-gradient-to-r from-emerald-400 to-emerald-600 text-white rounded-xl shadow-lg p-4">
-          <div className="flex justify-between items-center mb-2">
-            <div className="bg-white text-emerald-600 p-3 rounded-full text-xl">
-              💰
-            </div>
+        <div className="bg-gradient-to-r from-emerald-500 to-emerald-700 text-white rounded-xl shadow-lg p-4">
+          <div className="flex justify-between items-start mb-2">
+            <div className="bg-white/20 p-3 rounded-lg text-xl">💰</div>
             <div className="text-right">
-              <h2 className="font-semibold">Monthly Sales</h2>
-              <h2 className="font-bold text-2xl">
-                {formatCurrency(monthlySales || 0)}
-              </h2>
+              <p className="opacity-80 text-sm">Monthly Revenue</p>
+              <h2 className="font-bold text-2xl">{summary.formattedActualRevenue || "₦0.00"}</h2>
             </div>
           </div>
-          <div className="flex justify-end">
-            <Space>
-              <Select
-                defaultValue={dayjs().month() + 1}
-                style={{ width: 120 }}
-                onChange={(value) => setSelectedMonth(value)}
-              >
-                {Array.from({ length: 12 }, (_, i) => (
-                  <Select.Option key={i + 1} value={i + 1}>
-                    {dayjs().month(i).format("MMMM")}
-                  </Select.Option>
-                ))}
-              </Select>
-
-              <Select
-                defaultValue={dayjs().year()}
-                style={{ width: 100 }}
-                onChange={(value) => setSelectedYear(value)}
-              >
-                {[2023, 2024, 2025].map((year) => (
-                  <Select.Option key={year} value={year}>
-                    {year}
-                  </Select.Option>
-                ))}
-              </Select>
-            </Space>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-r from-indigo-400 to-indigo-600 text-white rounded-xl shadow-lg p-4">
-          <div className="flex justify-between items-center mb-2">
-            <div className="bg-white text-indigo-600 p-3 rounded-full text-xl">
-              📅
-            </div>
-            <div className="text-right">
-              <h2 className="font-semibold">
-                Sales on {selectedDate?.format("YYYY-MM-DD")}
-              </h2>
-              <h2 className="font-bold text-2xl">
-                {formatCurrency(dailySales)}
-              </h2>
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <DatePicker
-              format="YYYY-MM-DD"
-              value={selectedDate}
-              onChange={handleDateChange}
+          <div className="flex gap-2 mt-2">
+            <Select
+              size="small"
+              className="w-full"
+              value={selectedMonth}
+              onChange={setSelectedMonth}
+              options={Array.from({ length: 12 }, (_, i) => ({
+                value: i + 1,
+                label: dayjs().month(i).format("MMMM"),
+              }))}
+            />
+            <Select
+              size="small"
+              value={selectedYear}
+              onChange={setSelectedYear}
+              options={[2024, 2025, 2026].map(y => ({ value: y, label: y }))}
             />
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-rose-400 to-rose-600 text-white rounded-xl shadow-lg p-4">
-          <div className="flex items-center">
-            <div className="bg-white text-rose-600 p-3 rounded-full text-xl">
-              ⚠️
+        <div className="bg-gradient-to-r from-indigo-500 to-indigo-700 text-white rounded-xl shadow-lg p-4">
+          <div className="flex justify-between items-start mb-2">
+            <div className="bg-white/20 p-3 rounded-lg text-xl">📅</div>
+            <div className="text-right">
+              <p className="opacity-80 text-sm">Daily Sales</p>
+              <h2 className="font-bold text-2xl">₦{dailySales.toLocaleString()}</h2>
             </div>
+          </div>
+          <DatePicker
+            size="small"
+            className="w-full"
+            allowClear={false}
+            value={selectedDate}
+            onChange={handleDateChange}
+          />
+        </div>
+
+        <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl shadow-lg p-4">
+          <div className="flex items-center">
+            <div className="bg-white/20 p-3 rounded-lg text-xl">📈</div>
             <div className="ml-4">
-              <h2 className="font-semibold">Expired</h2>
-              <h2 className="font-bold text-2xl">{expiredCount}</h2>
+              <p className="opacity-80 text-sm">Potential Revenue</p>
+              <h2 className="font-bold text-2xl">{summary.formattedPotentialRevenue || "₦0.00"}</h2>
+              <p className="text-xs">Loss Rate: {summary.negotiationLossRate}%</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded-xl shadow-lg p-4">
+        <div className="bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-xl shadow-lg p-4">
           <div className="flex items-center">
-            <div className="bg-white text-yellow-600 p-3 rounded-full text-xl">
-              🧾
-            </div>
+            <div className="bg-white/20 p-3 rounded-lg text-xl">🧾</div>
             <div className="ml-4">
-              <h2 className="font-semibold">Monthly Transactions</h2>
-              <h2 className="font-bold text-2xl">{transaction}</h2>
+              <p className="opacity-80 text-sm">Transactions</p>
+              <h2 className="font-bold text-2xl">{summary.totalTransactions || 0}</h2>
+              <p className="text-xs">Area Sold: {summary.formattedAreaSold || "0 sqm"}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Charts & Table */}
+      {/* Main Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <h2 className="font-bold text-gray-700 mb-4">Top Selling Products</h2>
+          <Table
+            loading={loading}
+            size="small"
+            columns={productColumns}
+            dataSource={topProducts}
+            rowKey="_id"
+            pagination={{ pageSize: 5 }}
+          />
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <h2 className="font-bold text-gray-700 mb-4">7-Day Sales Trend</h2>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={salesTrends}>
+                <XAxis dataKey="date" tick={{fontSize: 12}} />
+                <YAxis tick={{fontSize: 12}} />
+                <Tooltip 
+                  formatter={(val) => `₦${val.toLocaleString()}`}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="totalSales" 
+                  stroke="#6366f1" 
+                  strokeWidth={3} 
+                  dot={{ r: 4 }} 
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded shadow p-4 overflow-x-auto">
-          <h2 className="font-bold text-lg mb-3">Top Selling Products</h2>
-          {loading ? (
-            <div className="flex justify-center items-center h-60">
-              <DotLoader />
-            </div>
-          ) : (
-            <div className="w-full min-w-[320px]">
-              <Table
-                size="small"
-                columns={columns}
-                dataSource={topProducts}
-                rowKey={(record) => record.cashierId || record._id}
-                pagination={{
-                  pageSize: 7,
-                  position: ["bottomCenter"],
-                  className: "custom-pagination",
-                }}
-              />
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white rounded shadow p-4">
-          <h2 className="text-lg font-bold mb-3">Sales Trend</h2>
-          {loading ? (
-            <div className="flex justify-center items-center h-60">
-              <DotLoader />
-            </div>
-          ) : (
-            <div className="w-full h-[300px]">
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={filteredMonthSales}>
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#f0f0f0",
-                      borderColor: "#ccc",
-                    }}
-                  />
-                  <Line dataKey="totalSales" fill="#6366f1" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-5">
-        <div className="bg-white rounded shadow p-4 overflow-x-auto">
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="text-lg font-bold">Cashier Daily Breakdown</h2>
-            <Button
-              className="!bg-gradient-to-r from-emerald-400 to-emerald-600 !text-white !font-bold"
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-bold text-gray-700">Cashier Performance</h2>
+            <Button 
+              type="primary" 
+              size="small"
+              ghost
               onClick={() => setViewChart(!viewChart)}
             >
-              {viewChart ? "View in table" : "View in chart"}
+              {viewChart ? "Show Table" : "Show Chart"}
             </Button>
           </div>
-
-          {loading ? (
-            <div className="flex justify-center items-center h-60">
-              <DotLoader />
+          
+          {viewChart ? (
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={cashierBreakdown}>
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip formatter={(val) => `₦${val.toLocaleString()}`} />
+                  <Bar dataKey="totalSales" fill="#10b981" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          ) : viewChart ? (
-            <CashierChart data={cashierDailyBreakdown} />
           ) : (
             <Table
-              size="middle"
+              loading={loading}
+              size="small"
               columns={cashierColumns}
-              dataSource={cashierDailyBreakdown}
-              rowKey={(record) => record.cashierId || record._id}
-              pagination={{
-                pageSize: 5,
-                position: ["bottomCenter"],
-                className: "custom-pagination",
-              }}
+              dataSource={cashierBreakdown}
+              rowKey="cashierId"
+              pagination={{ pageSize: 5 }}
+              onRow={(record) => ({
+                onClick: () => navigate(`/dashboard/cashier-details/${record.cashierId}`),
+                className: "cursor-pointer hover:bg-blue-50 transition-colors"
+              })}
             />
           )}
         </div>
 
-        <div className="bg-white rounded shadow p-4">
-          <h2 className="text-lg font-bold mb-3">Cashier Sales Distribution</h2>
-          {loading ? (
-            <div className="flex justify-center items-center h-60">
-              <DotLoader />
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <h2 className="font-bold text-gray-700 mb-4">Sales by Category</h2>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={cashierBreakdown}
+                  data={categorySummary}
                   dataKey="totalSales"
-                  nameKey="name"
+                  nameKey="categoryName"
                   cx="50%"
                   cy="50%"
-                  outerRadius={100}
-                  label
+                  outerRadius={80}
+                  label={(entry) => entry.categoryName}
                 >
-                  {cashierBreakdown.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
+                  {categorySummary.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-
-                <Tooltip formatter={(value) => `₦${value.toLocaleString()}`} />
-
-                <Legend
-                  layout="vertical"
-                  verticalAlign="middle"
-                  align="right"
-                />
+                <Tooltip formatter={(val) => `₦${val.toLocaleString()}`} />
+                <Legend />
               </PieChart>
             </ResponsiveContainer>
-          )}
+          </div>
         </div>
       </div>
     </div>
