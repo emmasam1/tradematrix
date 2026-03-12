@@ -214,7 +214,7 @@ const DashboardLayout = () => {
             left: collapsed ? 80 : 200,
             width: `calc(100% - ${collapsed ? 80 : 200}px)`,
             background: colorBgContainer,
-            zIndex: 1000,
+            // zIndex: 1000,
           }}
         >
           <h3 className="header-title text-2xl">{title}</h3>
@@ -264,7 +264,7 @@ const DashboardLayout = () => {
               transition
               className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg"
             >
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 z-[100]">
                 <div className="sm:flex sm:items-start">
                   <div className="mx-auto flex size-12 shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:size-10">
                     <ExclamationTriangleIcon

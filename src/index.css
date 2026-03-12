@@ -94,3 +94,10 @@
 .premium-table .ant-table-tbody > tr:hover > td {
   background: #f5f3ef;
 }
+
+@media print {
+  .receipt-print {
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+}
